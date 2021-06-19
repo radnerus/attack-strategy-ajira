@@ -15,7 +15,6 @@ export class Strategy {
      * @param opponentPlatoons 
      */
     constructor(ourPlatoons, opponentPlatoons) {
-        console.log({ ourPlatoons, opponentPlatoons });
         this.ourPlatoons = ourPlatoons;
         this.opponentPlatoons = opponentPlatoons;
         this.ourPlatoonsOrder = Array(this.opponentPlatoons.length).fill(undefined);
@@ -78,7 +77,6 @@ export class Strategy {
      * @param  count 
      */
     removeTroop(name, count) {
-        console.log({ name, count }, this);
         const troopCount = this.ourPlatoons[name];
         if (troopCount.length == 1) {
             delete this.ourPlatoons[name];
