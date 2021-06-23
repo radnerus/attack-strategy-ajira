@@ -8,8 +8,10 @@ import { parsePlatoons } from "./parsePlatoons.js";
 
 const BATTLE_COUNT = 5;
 
-let ourInput = 'Spearmen#10;Militia#30;FootArcher#20;LightCavalry#1000;HeavyCavalry#120';
-let opponentInput = 'Militia#10;Spearmen#10;FootArcher#1000;LightCavalry#120;CavalryArcher#100';
+// let ourInput = 'Spearmen#10;Militia#30;FootArcher#20;LightCavalry#1000;HeavyCavalry#120';
+// let opponentInput = 'Militia#10;Spearmen#10;FootArcher#1000;LightCavalry#120;CavalryArcher#100';
+let ourInput = null;
+let opponentInput = null;
 
 // Clears terminal
 clear();
@@ -24,6 +26,8 @@ console.log(
 console.log(chalk.bold.red('Instructions'));
 console.log(chalk.white('1. Valid types of soldiers: - Militia, Spearmen, Light Cavalry, Heavy Cavalry, Foot Archer, Cavalry Archer'));
 console.log(chalk.white('2. Format of platoons: <valid_soldier_type>#<valid_integer>;<valid_soldier_type2>#<valid_integer>;<valid_soldier_type>#<valid_integer>'));
+console.log(chalk.bold.red('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++'));
+
 const questions = [{
         name: 'ourPlatoon',
         type: 'input',
