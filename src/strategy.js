@@ -146,7 +146,10 @@ export class Strategy {
     matchOpponentWithBestTroops() {
         const _this = this;
         this.opponentPlatoons.forEach(function(opponent, index) {
-            const { name, count } = opponent;
+            const { name, count, matched } = opponent;
+            if (matched) {
+                return;
+            }
             const opponentDisadvantage = DISADVANTAGES[name];
             let minimumStrength = Number.MAX_VALUE;
             let minimumStrengthTroop = '';
@@ -155,11 +158,32 @@ export class Strategy {
                 if (strengthOfPlatoons) {
                     const minStrengthRequired = strengthOfPlatoons.sort((a, b) => a - b).find(_count => 2 * (_count) > count);
                     if (minStrengthRequired !== undefined && minStrengthRequired < minimumStrength) {
-                        minimumStrengthTroop = _name;
-                        minimumStrength = minStrengthRequired;
+                        const strengthsOfMatched = ADVANTAGES[_name];
+                        const others = strengthsOfMatched.filter(_m => _m !== opponent.name);
+                        const otherOpponent = _this.opponentPlatoons.filter(_opp => others.includes(_opp.name));
+                        let matchedWithOthers = false;
+                        if (otherOpponent.length) {
+                            otherOpponent.forEach(_other => {
+                                if (_other.count > opponent.count) {
+                                    const minStrength = strengthOfPlatoons.sort((a, b) => a - b).find(_count => 2 * (_count) > _other.count);
+                                    if (minStrength && minStrengthRequired < minStrength * 2) {
+                                        const _index = _this.opponentPlatoons.findIndex(_o => (_o.name === _other.name) && (_o.count === _other.count));
+                                        _other.matched = true;
+                                        _this.ourPlatoonsOrder[_index] = { name: _name, count: minStrength, result: 'win', opponent: _other };
+                                        _this.removeTroop(_name, minStrength, _this.ourPlatoons);
+                                        matchedWithOthers = true;
+                                    }
+                                }
+                            });
+                        }
+                        if (!matchedWithOthers) {
+                            minimumStrengthTroop = _name;
+                            minimumStrength = minStrengthRequired;
+                        }
                     }
                 }
             });
+
             if (minimumStrength != Number.MAX_VALUE) {
                 opponent.matched = true;
                 _this.ourPlatoonsOrder[index] = { name: minimumStrengthTroop, count: minimumStrength, result: 'win', opponent };
@@ -168,3 +192,5 @@ export class Strategy {
         });
     }
 }
+
+// new Strategy(parsePlatoons('FootArcher#60;FootArcher#10;LightCavalry#30;HeavyCavalry#1;CavalryArcher#3', true), parsePlatoons('Militia#10;Spearmen#10;CavalryArcher#100;HeavyCavalry#350;HeavyCavalry#400', false)).strategize()

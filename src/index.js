@@ -36,7 +36,7 @@ const questions = [{
             try {
 
                 ourInput = parsePlatoons(value, true);
-                if (Object.keys(ourInput).length === BATTLE_COUNT) {
+                if (Object.keys(ourInput).length) {
                     return true;
                 } else {
                     return 'Please enter your platoons in the valid format.';
