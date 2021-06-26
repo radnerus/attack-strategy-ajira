@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { ADVANTAGES, DISADVANTAGES } from "./matchUps.js";
+import { ADVANTAGES } from "./matchUps.js";
 import chalkTable from 'chalk-table'
 import figlet from "figlet";
 
@@ -12,9 +12,11 @@ export class Strategy {
     /**
      * Constructor of Strategy
      * @param ourPlatoons 
+     * @param ourPlatoonList
      * @param opponentPlatoons 
      */
-    constructor(ourPlatoons, opponentPlatoons) {
+    constructor(ourPlatoons, ourPlatoonList, opponentPlatoons) {
+        this.ourPlatoonList = ourPlatoonList;
         this.ourPlatoons = ourPlatoons;
         this.opponentPlatoons = opponentPlatoons;
         this.ourPlatoonsOrder = Array(this.opponentPlatoons.length).fill(undefined);
@@ -24,8 +26,7 @@ export class Strategy {
      * Method to initiate strategy
      */
     strategize() {
-        this.matchOpponentWithBestTroops();
-        this.remainingBattles();
+        this.simulateBattles();
         const options = {
             leftPad: 2,
             columns: [
@@ -77,39 +78,36 @@ export class Strategy {
      * @param  count 
      */
     removeTroop(name, count) {
-        const troopCount = this.ourPlatoons[name];
-        if (troopCount.length == 1) {
-            delete this.ourPlatoons[name];
-        } else if (troopCount.length > 1) {
-            const index = troopCount.findIndex(_count => _count === count);
-            troopCount.splice(index, 1);
-            this.ourPlatoons[name] = troopCount;
+        const troops = this.ourPlatoonList.filter(_p => _p.count === count && _p.name === name);
+        for (let i = 0; i < troops.length; i++) {
+            const troop = troops[i];
+            if (!troop.matched) {
+                troop.matched = true;
+                break;
+            }
         }
     }
 
     /**
-     * Simulated the remaining battles i.e., other than the strength matchup
+     * Simulates the battles
      */
-    remainingBattles() {
+    simulateBattles() {
         const _this = this;
         const matchUps = [];
         this.opponentPlatoons.forEach(function(opponent, index) {
-            if (!opponent.matched) {
-                const ourTroops = Object.keys(_this.ourPlatoons);
-                const opponentsAdvantages = ADVANTAGES[opponent.name];
-                ourTroops.forEach(function(our) {
-                    const isAdvantageForOpp = opponentsAdvantages.findIndex(_opp => _opp === our) > -1;
-                    const ourAdvantages = ADVANTAGES[our];
-                    const isAdvantageForUs = ourAdvantages.findIndex(_us => _us === opponent.name) > -1;
-                    _this.ourPlatoons[our].forEach(function(_count) {
-                        const collectiveOpponents = opponent.count * (isAdvantageForOpp ? 2 : 1);
-                        const collectiveOurs = _count * (isAdvantageForUs ? 2 : 1);
-                        const result = _this.compareTroops(collectiveOpponents, collectiveOurs);
-                        const difference = collectiveOpponents - collectiveOurs;
-                        matchUps.push({ result, difference, opponent, our, count: _count, index });
-                    })
-                });
-            }
+            const opponentsAdvantages = ADVANTAGES[opponent.name];
+            // Simulates all battles
+            _this.ourPlatoonList.forEach(function(_platoon) {
+                const our = _platoon.name;
+                const isAdvantageForOpp = opponentsAdvantages.findIndex(_opp => _opp === our) > -1;
+                const ourAdvantages = ADVANTAGES[our];
+                const isAdvantageForUs = ourAdvantages.findIndex(_us => _us === opponent.name) > -1;
+                const collectiveOpponents = opponent.count * (isAdvantageForOpp ? 2 : 1);
+                const collectiveOurs = _platoon.count * (isAdvantageForUs ? 2 : 1);
+                const result = _this.compareTroops(collectiveOpponents, collectiveOurs);
+                const difference = collectiveOpponents - collectiveOurs;
+                matchUps.push({ result, difference, opponent, our, count: _platoon.count, index });
+            });
         });
         const wins = matchUps.filter(_matchup => _matchup.result === 'win');
         this.checkMatchUps(wins, _this);
@@ -123,74 +121,55 @@ export class Strategy {
 
     /**
      * Util method to check the outcome of the matchups
-     * @param wins 
+     * @param results 
      * @param _this 
      */
-    checkMatchUps(wins, _this) {
-        if (wins.length > 0) {
-            wins.sort((a, b) => a.difference - b.difference);
-            wins.forEach(function(win) {
-                if (_this.ourPlatoons[win.our] && !_this.ourPlatoonsOrder[win.index]) {
-                    _this.ourPlatoonsOrder[win.index] = { name: win.our, count: win.count, result: win.result, opponent: win.opponent };
-                    win.opponent.matched = true;
-                    _this.removeTroop(win.our, win.count);
+    checkMatchUps(results, _this) {
+        if (results.length > 0) {
+            results.sort((a, b) => a.difference - b.difference);
+            results.forEach(function(result) {
+                if (!_this.ourPlatoonsOrder[result.index]) {
+                    const matches = _this.ourPlatoonList.filter(_pla => _pla.name === result.our && _pla.count === result.count);
+                    const allMatched = matches.every(match => match.matched);
+                    if (!allMatched) { // Unmatched matchup found
+                        _this.assignToResult(_this, result.index, result);
+                    } else if (result.result === 'win') {
+                        // Platoon with already won battle, but its another 
+                        // opportunity to win,
+                        const matched = matches.find(match => match.matched);
+                        const alreadyMatched = _this.ourPlatoonsOrder.filter(_order => _order && _order.name === matched.name && _order.count === matched.count);
+                        alreadyMatched.forEach(_matched => {
+                            const _opp = _matched.opponent;
+                            const alreadyMatchedWin = results.find(_rs => _rs.opponent === _opp);
+                            const prevWinIndex = alreadyMatchedWin.index;
+                            const addedTroopNames = _this.ourPlatoonsOrder.map(_ordered => _ordered && _ordered.name);
+                            const otherWins = results.filter(_rs => _rs.our !== result.our && _rs.index === prevWinIndex && !addedTroopNames.includes(_rs.our));
+                            // check if the previous won battle has another possibility to win
+                            if (otherWins.length > 0) {
+                                otherWins.sort((a, b) => a.difference - b.difference);
+                                const leastOtherWin = otherWins[0];
+                                // Result for previous matched
+                                _this.assignToResult(_this, prevWinIndex, leastOtherWin);
+                                // Result for current matched
+                                _this.assignToResult(_this, result.index, result);
+                            }
+
+                        });
+                    }
                 }
             });
         }
     }
 
     /**
-     * Method to match-up our best troops for the corresponding 
-     * opponent's platoons
+     * Method to assign the troops to output list
+     * @param _this 
+     * @param prevWinIndex 
+     * @param leastOtherWin 
      */
-    matchOpponentWithBestTroops() {
-        const _this = this;
-        this.opponentPlatoons.forEach(function(opponent, index) {
-            const { name, count, matched } = opponent;
-            if (matched) {
-                return;
-            }
-            const opponentDisadvantage = DISADVANTAGES[name];
-            let minimumStrength = Number.MAX_VALUE;
-            let minimumStrengthTroop = '';
-            opponentDisadvantage.forEach(function(_name) {
-                const strengthOfPlatoons = _this.ourPlatoons[_name];
-                if (strengthOfPlatoons) {
-                    const minStrengthRequired = strengthOfPlatoons.sort((a, b) => a - b).find(_count => 2 * (_count) > count);
-                    if (minStrengthRequired !== undefined && minStrengthRequired < minimumStrength) {
-                        const strengthsOfMatched = ADVANTAGES[_name];
-                        const others = strengthsOfMatched.filter(_m => _m !== opponent.name);
-                        const otherOpponent = _this.opponentPlatoons.filter(_opp => others.includes(_opp.name));
-                        let matchedWithOthers = false;
-                        if (otherOpponent.length) {
-                            otherOpponent.forEach(_other => {
-                                if (_other.count > opponent.count) {
-                                    const minStrength = strengthOfPlatoons.sort((a, b) => a - b).find(_count => 2 * (_count) > _other.count);
-                                    if (minStrength && minStrengthRequired < minStrength * 2) {
-                                        const _index = _this.opponentPlatoons.findIndex(_o => (_o.name === _other.name) && (_o.count === _other.count));
-                                        _other.matched = true;
-                                        _this.ourPlatoonsOrder[_index] = { name: _name, count: minStrength, result: 'win', opponent: _other };
-                                        _this.removeTroop(_name, minStrength, _this.ourPlatoons);
-                                        matchedWithOthers = true;
-                                    }
-                                }
-                            });
-                        }
-                        if (!matchedWithOthers) {
-                            minimumStrengthTroop = _name;
-                            minimumStrength = minStrengthRequired;
-                        }
-                    }
-                }
-            });
-
-            if (minimumStrength != Number.MAX_VALUE) {
-                opponent.matched = true;
-                _this.ourPlatoonsOrder[index] = { name: minimumStrengthTroop, count: minimumStrength, result: 'win', opponent };
-                _this.removeTroop(minimumStrengthTroop, minimumStrength, _this.ourPlatoons);
-            }
-        });
+    assignToResult(_this, prevWinIndex, leastOtherWin) {
+        _this.ourPlatoonsOrder[prevWinIndex] = { name: leastOtherWin.our, count: leastOtherWin.count, result: leastOtherWin.result, opponent: leastOtherWin.opponent };
+        leastOtherWin.opponent.matched = true;
+        _this.removeTroop(leastOtherWin.our, leastOtherWin.count);
     }
 }
-
-// new Strategy(parsePlatoons('FootArcher#60;FootArcher#10;LightCavalry#30;HeavyCavalry#1;CavalryArcher#3', true), parsePlatoons('Militia#10;Spearmen#10;CavalryArcher#100;HeavyCavalry#350;HeavyCavalry#400', false)).strategize()

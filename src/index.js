@@ -12,6 +12,7 @@ const BATTLE_COUNT = 5;
 // let opponentInput = 'Militia#10;Spearmen#10;FootArcher#1000;LightCavalry#120;CavalryArcher#100';
 let ourInput = null;
 let opponentInput = null;
+let ourInputArr = null;
 
 // Clears terminal
 clear();
@@ -29,37 +30,38 @@ console.log(chalk.white('2. Format of platoons: <valid_soldier_type>#<valid_inte
 console.log(chalk.bold.red('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++'));
 
 const questions = [{
-        name: 'ourPlatoon',
-        type: 'input',
-        message: 'Enter your platoon:',
-        validate: function(value) {
-            try {
+    name: 'ourPlatoon',
+    type: 'input',
+    message: 'Enter your platoon:',
+    validate: function (value) {
+        try {
 
-                ourInput = parsePlatoons(value, true);
-                if (Object.keys(ourInput).length) {
-                    return true;
-                } else {
-                    return 'Please enter your platoons in the valid format.';
-                }
-            } catch (error) {
-                return 'Please enter your platoons in the valid format.';
-            }
-        }
-    },
-    {
-        name: 'oppPlatoon',
-        type: 'input',
-        message: 'Enter your opponent\'s platoon: ',
-        validate: function(value) {
-            opponentInput = parsePlatoons(value, false);
-            if (opponentInput.length === BATTLE_COUNT) {
+            ourInput = parsePlatoons(value, true);
+            ourInputArr = parsePlatoons(value, false);
+            if (Object.keys(ourInput).length) {
                 return true;
             } else {
-                return 'Please enter your opponent\'s platoons in the valid format.';
+                return 'Please enter your platoons in the valid format.';
             }
+        } catch (error) {
+            return 'Please enter your platoons in the valid format.';
         }
     }
+},
+{
+    name: 'oppPlatoon',
+    type: 'input',
+    message: 'Enter your opponent\'s platoon: ',
+    validate: function (value) {
+        opponentInput = parsePlatoons(value, false);
+        if (opponentInput.length === BATTLE_COUNT) {
+            return true;
+        } else {
+            return 'Please enter your opponent\'s platoons in the valid format.';
+        }
+    }
+}
 ];
 inquirer.prompt(questions).then(() => {
-    new Strategy(ourInput, opponentInput).strategize();
+    new Strategy(ourInput, ourInputArr, opponentInput).strategize();
 });
